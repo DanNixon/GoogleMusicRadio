@@ -3,8 +3,8 @@
 ## Google Play Music client script for Rasp. Pi radio
 ## Copyright: Dan Nixon 2012-13
 ## dan-nixon.com
-## Version: 0.3.2
-## Date: 06/03/2013
+## Version: 0.3.5
+## Date: 24/06/2013
 
 import thread, time
 from gmusicapi import Webclient
@@ -296,9 +296,12 @@ class lcdMenuManager(object):
 	list_pos = 0
 	current_menu_display = list()
 	
-	LCD_COLS = 20
+	global lcd_man
+	LCD_COLS = 0
 	
 	def __init__(self):
+		global lcd_man
+		self.LCD_COLS = lcd_man.LCD_COLS
 		self.initStruct()
 	
 	def updateQueue(self):
@@ -595,6 +598,8 @@ class lcdManager(object):
 	BL_GPIO = 23
 	LCD_TIMEOUT = 60
 	
+	LCD_COLS = 20
+	
 	backlight_timeout = 0
 	backlight_on = False
 	lcd_base = BASE_INFO
@@ -646,13 +651,13 @@ class lcdManager(object):
 			if serial_port.isOpen():
 				serial_port.write("24~") ##Arduino Change
 				time.sleep(0.02)
-				serial_port.write("22%0%" + self.asciiFilter(line1) + "~") ##Arduino Change
+				serial_port.write("22%0%" + self.asciiFilter(line1)[:self.LCD_COLS] + "~") ##Arduino Change
 				time.sleep(0.02)
-				serial_port.write("22%1%" + self.asciiFilter(line2) + "~") ##Arduino Change
+				serial_port.write("22%1%" + self.asciiFilter(line2)[:self.LCD_COLS] + "~") ##Arduino Change
 				time.sleep(0.02)
-				serial_port.write("22%2%" + self.asciiFilter(line3) + "~") ##Arduino Change
+				serial_port.write("22%2%" + self.asciiFilter(line3)[:self.LCD_COLS] + "~") ##Arduino Change
 				time.sleep(0.02)
-				serial_port.write("22%3%" + self.asciiFilter(line4) + "~") ##Arduino Change
+				serial_port.write("22%3%" + self.asciiFilter(line4)[:self.LCD_COLS] + "~") ##Arduino Change
 			else:
 				print "Serial port is not open!"
 		else:
@@ -693,12 +698,14 @@ class lcdManager(object):
 			if case(self.BASE_LOVED):
 				song = m_player.getPlayingSong()
 				self.writeLCD(song["title"], song["artist"], "Loved on Last.fm", "Thumbs up on Play")
+				break
 			if case(self.BASE_AMP):
 				if vol_man.amp_on:
 					en_string = "Enabled"
 				else:
 					en_string = "Disabled"
 				self.writeLCD("", "Internal Amplifier:", en_string, "")
+				break
 
 	def timerThread(self):
 		while self.timer_run:
@@ -907,7 +914,7 @@ def main():
 	lcd_man.info_lines = ["Logging in...", "", "", ""]
 	lcd_man.update()
 	serial_port.flushInput()
-	m_client = gMusicClient("GOOGLE_USER", "GOGOLE_PASS")
+	m_client = gMusicClient("GOOGLE_USER", "GOOGLE_PASS")
 	lcd_man.info_lines = ["Login Success.", "", "", ""]
 	lcd_man.update()
 	serial_port.flushInput()
