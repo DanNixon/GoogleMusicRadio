@@ -316,14 +316,14 @@ class lcdMenuManager(object):
 		self.menu_struct["Settings"] = {'Reload Library':'LIB_RELOAD', 'Toggle Scrobbling':'LASTFM_TOGGLE'}
 		#MOD_VERIF
 		self.menu_struct["Library"] = {	'A':dict(),'B':dict(),'C':dict(),
-										'D':dict(),'E':dict(),'F':dict(),
-										'G':dict(),'H':dict(),'I':dict(),
-										'J':dict(),'K':dict(),'L':dict(),
-										'M':dict(),'N':dict(),'O':dict(),
-										'P':dict(),'Q':dict(),'R':dict(),
-										'S':dict(),'T':dict(),'U':dict(),
-										'V':dict(),'W':dict(),'X':dict(),
-										'Y':dict(),'Z':dict(),'#':dict()}
+						'D':dict(),'E':dict(),'F':dict(),
+						'G':dict(),'H':dict(),'I':dict(),
+						'J':dict(),'K':dict(),'L':dict(),
+						'M':dict(),'N':dict(),'O':dict(),
+						'P':dict(),'Q':dict(),'R':dict(),
+						'S':dict(),'T':dict(),'U':dict(),
+						'V':dict(),'W':dict(),'X':dict(),
+						'Y':dict(),'Z':dict(),'#':dict()}
 		for artist, data in m_client.library.iteritems():
 			name_letter = artist[:1].upper()
 			if name_letter in string.ascii_uppercase:
@@ -353,6 +353,9 @@ class lcdMenuManager(object):
 		try:
 			if self.menu_history[0] == "Playlists":
 				print "Showing playlists, will sort for LCD"
+				self.current_menu_display.sort()
+			if (self.menu_history[0] == "Library") and (self.menu_level == 1):
+				print "Showing artists sel, will sort for LCD"
 				self.current_menu_display.sort()
 			if (self.menu_history[0] == "Library") and (self.menu_level == 2):
 				print "Showing artists, will sort for LCD"
