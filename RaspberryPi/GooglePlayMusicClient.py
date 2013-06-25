@@ -3,10 +3,10 @@
 ## Google Play Music client script for Rasp. Pi radio
 ## Copyright: Dan Nixon 2012-13
 ## dan-nixon.com
-## Version: 0.3.5
-## Date: 24/06/2013
+## Version: 0.3.6
+## Date: 25/06/2013
 
-import thread, time
+import thread, time, string
 from gmusicapi import Webclient
 from operator import itemgetter
 import RPi.GPIO as gpio
@@ -295,8 +295,6 @@ class lcdMenuManager(object):
 	cursor_pos = 0
 	list_pos = 0
 	current_menu_display = list()
-	
-	global lcd_man
 	LCD_COLS = 0
 	
 	def __init__(self):
@@ -314,9 +312,24 @@ class lcdMenuManager(object):
 	def initStruct(self):
 		global m_client
 		self.updateQueue()
-		self.menu_struct["Library"] = m_client.library
 		self.menu_struct["Playlists"] = m_client.playlists
 		self.menu_struct["Settings"] = {'Reload Library':'LIB_RELOAD', 'Toggle Scrobbling':'LASTFM_TOGGLE'}
+		#MOD_VERIF
+		self.menu_struct["Library"] = {	'A':dict(),'B':dict(),'C':dict(),
+										'D':dict(),'E':dict(),'F':dict(),
+										'G':dict(),'H':dict(),'I':dict(),
+										'J':dict(),'K':dict(),'L':dict(),
+										'M':dict(),'N':dict(),'O':dict(),
+										'P':dict(),'Q':dict(),'R':dict(),
+										'S':dict(),'T':dict(),'U':dict(),
+										'V':dict(),'W':dict(),'X':dict(),
+										'Y':dict(),'Z':dict(),'#':dict()}
+		for artist, data in m_client.library.iteritems():
+			name_letter = artist[:1].upper()
+			if name_letter in string.ascii_uppercase:
+				self.menu_struct["Library"][name_letter][artist] = data
+			else:
+				self.menu_struct["Library"]['#'][artist] = data
 	
 	def renderMenu(self):
 		for case in switch(self.menu_level):
@@ -332,16 +345,19 @@ class lcdMenuManager(object):
 			if case(3):
 				self.current_menu_display = self.menu_struct[self.menu_history[0]][self.menu_history[1]][self.menu_history[2]]
 				break
+			if case(4):
+				self.current_menu_display = self.menu_struct[self.menu_history[0]][self.menu_history[1]][self.menu_history[2]][self.menu_history[3]]
+				break
 		if type(self.current_menu_display) is dict:
 			self.current_menu_display = self.current_menu_display.keys()
 		try:
 			if self.menu_history[0] == "Playlists":
 				print "Showing playlists, will sort for LCD"
 				self.current_menu_display.sort()
-			if (self.menu_history[0] == "Library") and (self.menu_level == 1):
+			if (self.menu_history[0] == "Library") and (self.menu_level == 2):
 				print "Showing artists, will sort for LCD"
 				self.current_menu_display.sort()
-			if (self.menu_history[0] == "Library") and (self.menu_level == 2):
+			if (self.menu_history[0] == "Library") and (self.menu_level == 3):
 				print "Showing albums, will sort for LCD"
 				self.current_menu_display.sort()
 		except IndexError:
@@ -527,7 +543,7 @@ class lcdMenuManager(object):
 							print "On queue, nothing selected (queue empty)"
 						break
 					if case("Library"):
-						print "On Artist list, an artist was selected."
+						print "On Artist list, an artist letter was selected."
 						self.menu_level = 2
 						self.cursor_pos = 0
 						self.menu_index = 0
@@ -559,7 +575,7 @@ class lcdMenuManager(object):
 						lcd_man.update()
 						break
 					if case("Library"):
-						print "On an artist, an album was selected."
+						print "On an artist letter list, an artist was selected."
 						self.menu_level = 3
 						self.cursor_pos = 0
 						self.menu_index = 0
@@ -567,7 +583,15 @@ class lcdMenuManager(object):
 						break
 				break
 			if case(3):
-				album_songs = self.menu_struct[self.menu_history[0]][self.menu_history[1]][self.menu_history[2]]
+				print "On an artist, an album was selected."
+				self.menu_level = 4
+				self.cursor_pos = 0
+				self.menu_index = 0
+				self.menu_history.append(selected_item_name)
+				break
+			if case(4):
+				print "On an album, a track was selected."
+				album_songs = self.menu_struct[self.menu_history[0]][self.menu_history[1]][self.menu_history[2]][self.menu_history[3]]
 				queue_len = len(m_player.queue)
 				m_player.queue_index = queue_len + self.menu_index - 1
 				for song in album_songs:
@@ -815,6 +839,7 @@ def serialHandler():
 	time.sleep(0.01)
 	data = serial_port.read(2)
 	lcd_man.backlight_timestart = time.time()
+	player_state = m_player.player.get_state()[1]  #MOD_VERIF
 	for case in switch(data): ##Arduino Change
 		if case("11"):
 			print "Stop button pressed."
@@ -832,8 +857,7 @@ def serialHandler():
 			break
 		if case("20"):
 			print "Love pressed."
-			player_state = m_player.player.get_state()[1]
-			if player_state == gst.STATE_PLAYING:
+			if player_state == gst.STATE_PLAYING or player_state == gst.STATE_PAUSED: #MOD_VERIF
 				lcd_man.lcdLoved()
 				last_fm.loveSong(m_player.now_playing_song)
 				m_client.thumbsUp(m_player.now_playing_song)
@@ -842,8 +866,9 @@ def serialHandler():
 			print "Display pressed."
 			for case in switch(lcd_man.lcd_base):
 				if case(lcd_man.BASE_MENU):
-					lcd_man.lcd_base = lcd_man.BASE_PLAYING
-					lcd_man.update()
+					if player_state == gst.STATE_PLAYING or player_state == gst.STATE_PAUSED: #MOD_VERIF
+						lcd_man.lcd_base = lcd_man.BASE_PLAYING
+						lcd_man.update()
 					break
 				if case(lcd_man.BASE_PLAYING):
 					lcd_man.lcd_base = lcd_man.BASE_MENU
