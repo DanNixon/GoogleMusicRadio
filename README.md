@@ -16,4 +16,4 @@ Libraries required for Arduino and Raspberry Pi are listed in the respective fol
 
 Build Instructions
 ------------------
-A complete guide to building a radio is currently being produced on [Instructables](http://www.instructables.com/), I will update this file when I have published it, however you may check [here](http://www.instructables.com/member/DanNixon/) to see if it is published in the meantime.
+A complete guide to building a radio is availiable [here](http://www.instructables.com/id/Google-Play-Music-Internet-Radio-Raspberry-Pi-and/) on Instructbles.
