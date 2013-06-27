@@ -3,10 +3,10 @@
 ## Google Play Music client script for Rasp. Pi radio
 ## Copyright: Dan Nixon 2012-13
 ## dan-nixon.com
-## Version: 0.3.6
-## Date: 25/06/2013
+## Version: 0.3.7
+## Date: 27/06/2013
 
-import thread, time, string
+import thread, time, string, random
 from gmusicapi import Webclient
 from operator import itemgetter
 import RPi.GPIO as gpio
@@ -91,10 +91,10 @@ class gMusicClient(object):
 		print "Artist count: ", len(self.library)
 		print "Updating playlists...",
 		plists = self.api.get_all_playlist_ids(auto=True, user=True)
-		for a_playlist, a_playlist_id in plists["auto"].iteritems():
-			self.playlists[a_playlist] = self.api.get_playlist_songs(a_playlist_id[0])
 		for u_playlist, u_playlist_id in plists["user"].iteritems():
 			self.playlists[u_playlist] = self.api.get_playlist_songs(u_playlist_id[0])
+		print "Generating Thumbs Up..."
+		self.playlists["Thumbs Up"] = [song for song in songs if song['rating'] == 5]
 		print "done."
 		print "Playlist count: ", len(self.playlists)
 		print "Library update complete."
@@ -117,6 +117,8 @@ class mediaPlayer(object):
 	now_playing_song = None
 	queue = list()
 	queue_index = -1
+	random = False
+	repeat = True
 	
 	def __init__(self):
 		thread.start_new_thread(self.playerThread, ())
@@ -207,13 +209,19 @@ class mediaPlayer(object):
 	def playNextInQueue(self):
 		global lcd_man
 		print "Playing next song in queue"
-		if not self.queue_index == (len(self.queue) - 1):
-			self.queue_index = self.queue_index + 1
-			next_song = self.queue[self.queue_index]
-			self.playSong(next_song)
+		if self.random:
+			self.queue_index = random.randint(0, (len(self.queue) - 1))
 		else:
-			self.stopPlayback()
-			print "The queue is empty!"
+			self.queue_index = self.queue_index + 1
+		if self.queue_index == len(self.queue):
+			if self.repeat:
+				self.queue_index = 0
+			else:
+				self.stopPlayback()
+				print "The queue is empty!"
+				return
+		next_song = self.queue[self.queue_index]
+		self.playSong(next_song)
 
 	def addToQueue(self, song):
 		print "Adding song to queue. Song ID: ", song["id"]
@@ -313,17 +321,16 @@ class lcdMenuManager(object):
 		global m_client
 		self.updateQueue()
 		self.menu_struct["Playlists"] = m_client.playlists
-		self.menu_struct["Settings"] = {'Reload Library':'LIB_RELOAD', 'Toggle Scrobbling':'LASTFM_TOGGLE'}
-		#MOD_VERIF
+		self.menu_struct["Settings"] = {'Reload Library':'LIB_RELOAD', 'Toggle Scrobbling':'LASTFM_TOGGLE', 'Toggle Play Mode':'T_PMODE', 'Toggle Repeat':'T_REPEAT'}
 		self.menu_struct["Library"] = {	'A':dict(),'B':dict(),'C':dict(),
-						'D':dict(),'E':dict(),'F':dict(),
-						'G':dict(),'H':dict(),'I':dict(),
-						'J':dict(),'K':dict(),'L':dict(),
-						'M':dict(),'N':dict(),'O':dict(),
-						'P':dict(),'Q':dict(),'R':dict(),
-						'S':dict(),'T':dict(),'U':dict(),
-						'V':dict(),'W':dict(),'X':dict(),
-						'Y':dict(),'Z':dict(),'#':dict()}
+										'D':dict(),'E':dict(),'F':dict(),
+										'G':dict(),'H':dict(),'I':dict(),
+										'J':dict(),'K':dict(),'L':dict(),
+										'M':dict(),'N':dict(),'O':dict(),
+										'P':dict(),'Q':dict(),'R':dict(),
+										'S':dict(),'T':dict(),'U':dict(),
+										'V':dict(),'W':dict(),'X':dict(),
+										'Y':dict(),'Z':dict(),'#':dict()}
 		for artist, data in m_client.library.iteritems():
 			name_letter = artist[:1].upper()
 			if name_letter in string.ascii_uppercase:
@@ -534,6 +541,18 @@ class lcdMenuManager(object):
 								lcd_man.lcdLastfmToggle()
 								no_lcd_update = True
 								break
+							if case("Toggle Play Mode"):
+								print "Play mode menu option selected"
+								m_player.random = not m_player.random
+								lcd_man.lcdPlayModeToggle()
+								no_lcd_update = True
+								break
+							if case("Toggle Repeat"):
+								print "Repeat menu option selected"
+								m_player.repeat = not m_player.repeat
+								lcd_man.lcdRepeatToggle()
+								no_lcd_update = True
+								break
 						break
 					if case("Queue"):
 						if not (selected_item == "Queue Empty"):
@@ -692,7 +711,6 @@ class lcdManager(object):
 	
 	def update(self):
 		global m_player
-		global last_fm
 		for case in switch(self.lcd_base):
 			if case(self.BASE_INFO):
 				self.writeLCD(self.info_lines[0], self.info_lines[1], self.info_lines[2], self.info_lines[3])
@@ -702,13 +720,13 @@ class lcdManager(object):
 				info_line_list = list()
 				player_state = m_player.player.get_state()[1]
 				if player_state == gst.STATE_PLAYING:
-					info_line_list.append("Playing  ")
+					info_line_list.append("Playing   ")
 				if player_state == gst.STATE_PAUSED:
-					info_line_list.append("Paused   ")
-				if last_fm.scrobbles_enabled:
-					info_line_list.append("Last.fm On  ")
+					info_line_list.append("Paused    ")
+				if m_player.random:
+					info_line_list.append("Random")
 				else:
-					info_line_list.append("Last.fm Off ")
+					info_line_list.append("Linear")
 				if not song == None:
 					self.writeLCD(song["title"], song["artist"], song["album"], ''.join(info_line_list))
 				else:
@@ -753,14 +771,14 @@ class lcdManager(object):
 		self.lcd_base = self.BASE_AMP
 		self.update()
 		self.lcd_base = base_last
-		self.initTimer(3)
+		self.initTimer(2)
 	
 	def lcdLoved(self):
 		base_last = self.lcd_base
 		self.lcd_base = self.BASE_LOVED
 		self.update()
 		self.lcd_base = base_last
-		self.initTimer(3)
+		self.initTimer(2)
 
 	def lcdVol(self):
 		base_last = self.lcd_base
@@ -782,7 +800,33 @@ class lcdManager(object):
 		self.info_lines = ["Last.fm Scrobbling:", string, "", ""]
 		self.update()
 		self.lcd_base = lcd_man.BASE_MENU
-		self.initTimer(3)
+		self.initTimer(2)
+	
+	def lcdRepeatToggle(self):
+		self.lcd_base = lcd_man.BASE_INFO
+		string = ""
+		global m_player
+		if m_player.repeat:
+			string = "Enabled"
+		else:
+			string = "Disabled"
+		self.info_lines = ["Repeat:", string, "", ""]
+		self.update()
+		self.lcd_base = lcd_man.BASE_MENU
+		self.initTimer(2)
+	
+	def lcdPlayModeToggle(self):
+		self.lcd_base = lcd_man.BASE_INFO
+		string = ""
+		global m_player
+		if m_player.random:
+			string = "Random"
+		else:
+			string = "Linear"
+		self.info_lines = ["Play Mode:", string, "", ""]
+		self.update()
+		self.lcd_base = lcd_man.BASE_MENU
+		self.initTimer(2)
 
 class lastfmScrobbler(object):
 	API_KEY = "3b918147d7533ddb46cbf8c90c7c4b63"
@@ -842,7 +886,7 @@ def serialHandler():
 	time.sleep(0.01)
 	data = serial_port.read(2)
 	lcd_man.backlight_timestart = time.time()
-	player_state = m_player.player.get_state()[1]  #MOD_VERIF
+	player_state = m_player.player.get_state()[1]
 	for case in switch(data): ##Arduino Change
 		if case("11"):
 			print "Stop button pressed."
@@ -860,7 +904,7 @@ def serialHandler():
 			break
 		if case("20"):
 			print "Love pressed."
-			if player_state == gst.STATE_PLAYING or player_state == gst.STATE_PAUSED: #MOD_VERIF
+			if player_state == gst.STATE_PLAYING or player_state == gst.STATE_PAUSED:
 				lcd_man.lcdLoved()
 				last_fm.loveSong(m_player.now_playing_song)
 				m_client.thumbsUp(m_player.now_playing_song)
@@ -869,7 +913,7 @@ def serialHandler():
 			print "Display pressed."
 			for case in switch(lcd_man.lcd_base):
 				if case(lcd_man.BASE_MENU):
-					if player_state == gst.STATE_PLAYING or player_state == gst.STATE_PAUSED: #MOD_VERIF
+					if player_state == gst.STATE_PLAYING or player_state == gst.STATE_PAUSED:
 						lcd_man.lcd_base = lcd_man.BASE_PLAYING
 						lcd_man.update()
 					break
