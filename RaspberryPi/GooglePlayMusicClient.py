@@ -65,11 +65,11 @@ class gMusicClient(object):
 		songs = list()
 		self.library = dict()
 		self.playlists = dict()
-		print "Updating local library...",
+		print "Updating local library..."
 		songs = self.api.get_all_songs()
 		print "done."
 		print "Song count: ", len(songs)
-		print "Building atrist and album dictionaries...",
+		print "Building atrist and album dictionaries..."
 		for song in songs:
 			song_title = song["title"]
 			if song["artist"] == "":
@@ -89,9 +89,10 @@ class gMusicClient(object):
 			self.library[song_artist][song_album].append(song)
 		print "done."
 		print "Artist count: ", len(self.library)
-		print "Updating playlists...",
+		print "Updating playlists..."
 		plists = self.api.get_all_playlist_ids(auto=True, user=True)
 		for u_playlist, u_playlist_id in plists["user"].iteritems():
+			print "Playlist: ", u_playlist
 			self.playlists[u_playlist] = self.api.get_playlist_songs(u_playlist_id[0])
 		print "Generating Thumbs Up..."
 		self.playlists["Thumbs Up"] = [song for song in songs if song['rating'] == 5]
