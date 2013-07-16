@@ -560,9 +560,9 @@ class lcdMenuManager(object):
 						if not (selected_item == "Queue Empty"):
 								print "On queue, a song was selected."
 								m_player.queue_index = (self.menu_index - 1)
-								m_player.nextSong()
 								lcd_man.lcd_base = lcd_man.BASE_PLAYING
-								lcd_man.update()
+								m_player.nextSong()
+								no_lcd_update = True
 						else:
 							print "On queue, nothing selected (queue empty)"
 						break
@@ -594,9 +594,9 @@ class lcdMenuManager(object):
 						m_player.queue_index = queue_len + self.menu_index - 1
 						for song in plist_songs:
 							m_player.addToQueue(song)
-						m_player.nextSong()
 						lcd_man.lcd_base = lcd_man.BASE_PLAYING
-						lcd_man.update()
+						m_player.nextSong()
+						no_lcd_update = True
 						break
 					if case("Library"):
 						print "On an artist letter list, an artist was selected."
@@ -620,9 +620,9 @@ class lcdMenuManager(object):
 				m_player.queue_index = queue_len + self.menu_index - 1
 				for song in album_songs:
 					m_player.addToQueue(song)
-				m_player.nextSong()
 				lcd_man.lcd_base = lcd_man.BASE_PLAYING
-				lcd_man.update()
+				m_player.nextSong()
+				no_lcd_update = True
 				break
 		if not no_lcd_update:
 			self.renderMenu()
