@@ -157,6 +157,7 @@ class mediaPlayer(object):
 			self.player.set_property("uri", song_url)
 			self.player.set_state(gst.STATE_PLAYING)
 			self.now_playing_song = song
+			time.sleep(0.5)
 			lcd_man.update()
 		except AttributeError:
 			print "Player does not yet exist!"
