@@ -194,7 +194,6 @@ class mediaPlayer(object):
 		global vol_man
 		try:
 			print "Stopping playback"
-			vol_man.setAmpPower(False)
 			self.player.set_state(gst.STATE_NULL)
 			self.now_playing_song = None
 		except AttributeError:
@@ -220,6 +219,8 @@ class mediaPlayer(object):
 				self.queue_index = 0
 			else:
 				self.stopPlayback()
+                                global vol_man
+                                vol_man.setAmpPower(False)
 				print "The queue is empty!"
 				return
 		next_song = self.queue[self.queue_index]
@@ -529,6 +530,8 @@ class lcdMenuManager(object):
 							if case("Reload Library"):
 								print "Reload Library menu option selected"
 								m_player.stopPlayback()
+								global vol_man
+								vol_man.setAmpPower(False)
 								lcd_man.lcd_base = lcd_man.BASE_INFO
 								lcd_man.info_lines = ["Updating local lib.", "from Google Play...", "", "Please Wait..."]
 								lcd_man.update()
@@ -893,6 +896,7 @@ def serialHandler():
 		if case("11"):
 			print "Stop button pressed."
 			m_player.stopPlayback()
+			vol_man.setAmpPower(False)
 			lcd_man.lcd_base = lcd_man.BASE_MENU
 			lcd_man.update()
 			break
