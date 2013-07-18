@@ -3,8 +3,8 @@
 ## Google Play Music client script for Rasp. Pi radio
 ## Copyright: Dan Nixon 2012-13
 ## dan-nixon.com
-## Version: 0.3.7
-## Date: 27/06/2013
+## Version: 0.3.9
+## Date: 18/07/2013
 
 import thread, time, string, random
 from gmusicapi import Webclient
@@ -65,11 +65,11 @@ class gMusicClient(object):
 		songs = list()
 		self.library = dict()
 		self.playlists = dict()
-		print "Updating local library..."
+		print "Updating local library...",
 		songs = self.api.get_all_songs()
 		print "done."
 		print "Song count: ", len(songs)
-		print "Building atrist and album dictionaries..."
+		print "Building atrist and album dictionaries...",
 		for song in songs:
 			song_title = song["title"]
 			if song["artist"] == "":
@@ -127,7 +127,13 @@ class mediaPlayer(object):
 	def __del__(self):
 		self.now_playing_song = None
 		self.player.set_state(gst.STATE_NULL)
-		
+	
+	def clearQueue(self):
+		global lcd_menu_man
+		self.queue = list()
+		self.queue_index = -1
+		lcd_menu_man.updateQueue()
+	
 	def getPlayingSong(self):
 		return self.now_playing_song
 	
@@ -219,8 +225,8 @@ class mediaPlayer(object):
 				self.queue_index = 0
 			else:
 				self.stopPlayback()
-                                global vol_man
-                                vol_man.setAmpPower(False)
+				global vol_man
+				vol_man.setAmpPower(False)
 				print "The queue is empty!"
 				return
 		next_song = self.queue[self.queue_index]
@@ -312,7 +318,7 @@ class lcdMenuManager(object):
 		global lcd_man
 		self.LCD_COLS = lcd_man.LCD_COLS
 		self.initStruct()
-	
+
 	def updateQueue(self):
 		global m_player
 		if not (len(m_player.queue) == 0):
@@ -324,7 +330,7 @@ class lcdMenuManager(object):
 		global m_client
 		self.updateQueue()
 		self.menu_struct["Playlists"] = m_client.playlists
-		self.menu_struct["Settings"] = {'Reload Library':'LIB_RELOAD', 'Toggle Scrobbling':'LASTFM_TOGGLE', 'Toggle Play Mode':'T_PMODE', 'Toggle Repeat':'T_REPEAT'}
+		self.menu_struct["Settings"] = ["Toggle Play Mode", "Toggle Repeat", "Clear Queue", "Toggle Scrobbling", "Reload Library"]
 		self.menu_struct["Library"] = {	'A':dict(),'B':dict(),'C':dict(),
 										'D':dict(),'E':dict(),'F':dict(),
 										'G':dict(),'H':dict(),'I':dict(),
@@ -537,9 +543,16 @@ class lcdMenuManager(object):
 								lcd_man.update()
 								m_client.updateLocalLib()
 								self.initStruct()
-								lcd_man.lcd_base = lcd_man.BASE_MENU
-								lcd_man.update()
 								break
+							if case("Clear Queue"):
+								print "Clear queue menu option selected"
+								global vol_man
+								m_player.stopPlayback()
+								vol_man.setAmpPower(False)
+								m_player.clearQueue()
+								lcd_man.lcdClearQueue()
+								no_lcd_update = True
+								break;
 							if case("Toggle Scrobbling"):
 								print "Last.fm menu option selected"
 								last_fm.toggleScrobbling()
@@ -806,6 +819,13 @@ class lcdManager(object):
 		self.update()
 		self.lcd_base = lcd_man.BASE_MENU
 		self.initTimer(2)
+
+	def lcdClearQueue(self):
+		self.lcd_base = lcd_man.BASE_INFO
+		self.info_lines = ["Queue Cleared", "", "", ""]
+		self.update()
+		self.lcd_base = lcd_man.BASE_MENU
+		self.initTimer(2)
 	
 	def lcdRepeatToggle(self):
 		self.lcd_base = lcd_man.BASE_INFO
@@ -989,7 +1009,7 @@ def main():
 	global serial_port
 	lcd_man = lcdManager()
 	lcd_man.lcd_base = lcd_man.BASE_INFO
-	lcd_man.info_lines = ["Logging in...", "", "", ""]
+	lcd_man.info_lines = ["Logging in...", "", "", "Please wait..."]
 	lcd_man.update()
 	serial_port.flushInput()
 	m_client = gMusicClient("GOOGLE_USER", "GOOGLE_PASS")
@@ -998,11 +1018,11 @@ def main():
 	serial_port.flushInput()
 	vol_man = volumeManager(40)
 	m_player = mediaPlayer()
-	lcd_man.info_lines = ["Updating local lib.", "from Google Play...", "", ""]
+	lcd_man.info_lines = ["Updating local lib.", "from Google Play...", "", "Please Wait..."]
 	lcd_man.update()
 	serial_port.flushInput()
 	m_client.updateLocalLib()
-	lcd_man.info_lines = ["Logging in to", "Last.fm...", "", ""]
+	lcd_man.info_lines = ["Logging in to", "Last.fm...", "", "Please wait..."]
 	lcd_man.update()
 	serial_port.flushInput()
 	last_fm = lastfmScrobbler("LASTFM_USER", "LASTFM_PASS")
