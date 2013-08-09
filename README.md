@@ -10,6 +10,8 @@ The radio is intended to be used with [Last.fm](http://last.fm) to report the cu
 
 A basic user interface of 6 buttons, two rotary encoders with push in switches and a 4 row, 20 column LCD is used, although it is possible to use various sizes of LCD based on specific user requirements enclosure designs.
 
+Note that this radio is designed to work with a personal library only, personally I don't use the All Access service so have no need to support it, but feel free to add this functionality, the Google Music API does support All Access radio.
+
 Requirements
 ------------
 Libraries required for Arduino and Raspberry Pi are listed in the respective folders.
