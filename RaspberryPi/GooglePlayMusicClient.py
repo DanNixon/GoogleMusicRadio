@@ -4,7 +4,7 @@
 ## Copyright: Dan Nixon 2012-13
 ## dan-nixon.com
 ## Version: 0.3.9
-## Date: 18/07/2013
+## Date: 31/08/2013
 
 import thread, time, string, random
 from gmusicapi import Webclient
@@ -1009,7 +1009,9 @@ def main():
 	global serial_port
 	lcd_man = lcdManager()
 	lcd_man.lcd_base = lcd_man.BASE_INFO
-	lcd_man.info_lines = ["Logging in...", "", "", "Please wait..."]
+	lcd_man.info_lines = ["", "", "", ""]
+	lcd_man.update()
+	lcd_man.info_lines = ["Logging in to", "Google Play...", "", "Please wait..."]
 	lcd_man.update()
 	serial_port.flushInput()
 	m_client = gMusicClient("GOOGLE_USER", "GOOGLE_PASS")
