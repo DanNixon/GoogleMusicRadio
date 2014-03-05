@@ -110,7 +110,7 @@ class GPMClient(object):
 		try:
 			song["rating"] = rating
 			song_list = [song]
-##			self.api.change_song_metadata(song_list)	TODO: Not sure if this will work
+			self.__api.change_song_metadata(song_list)
 			print "Gave a Thumbs Up to {0} by {1} on Google Play.".format(song["title"].encode("utf-8"), song["artist"].encode("utf-8"))
 		except:
 			print "Error giving a Thumbs Up on Google Play."
@@ -859,8 +859,11 @@ class LastfmScrobbler(object):
 		artist = song['artist']
 		if artist == "":
 			artist = "Unknown Artist"
-		track = self.__session.get_track(artist, title)
-		track.love()
+		try:
+			track = self.__session.get_track(artist, title)
+			track.love()
+		except:
+			pass
 
 	def update_now_playing(self, song):
 		if not song == None and self.enabled:
@@ -871,7 +874,10 @@ class LastfmScrobbler(object):
 		artist = song['artist']
 		if artist == "":
 			artist = "Unknown Artist"
-		self.__session.update_now_playing(artist, title)
+		try:
+			self.__session.update_now_playing(artist, title)
+		except:
+			pass
 
 	def scrobble(self, song):
 		if not song == None and self.enabled:
@@ -882,7 +888,10 @@ class LastfmScrobbler(object):
 		artist = song['artist']
 		if artist == "":
 			artist = "Unknown Artist"
-		self.__session.scrobble(artist, title, int(time.time()))
+		try:
+			self.__session.scrobble(artist, title, int(time.time()))
+		except:
+			pass
 	
 def serial_handler():
 	time.sleep(0.01)
