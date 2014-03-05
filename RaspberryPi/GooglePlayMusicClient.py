@@ -6,7 +6,7 @@
 ## Version: 0.4
 ## Date: 04/03/2014
 
-import thread, time, string, random
+import thread, time, random, string
 from gmusicapi import Mobileclient
 import RPi.GPIO as gpio
 import smbus
@@ -14,13 +14,13 @@ import serial
 import gobject, glib
 import gst
 
-__MusicClient__ = None
-__MediaPlayer__ = None
-__VolumeMan__ = None
-__LCDMan__ = None
-__LastFm__ = None
-__LCDMenuMan__ = None
-__SerialPort__ = None
+#__MusicClient__ = None
+#__MediaPlayer__ = None
+#__VolumeMan__ = None
+#__LCDMan__ = None
+#__LastFm__ = None
+#__LCDMenuMan__ = None
+#__SerialPort__ = None
 
 class switch(object):
 	def __init__(self, value):
@@ -143,10 +143,13 @@ class MediaPlayer(object):
 			glib.MainLoop().run()
 		else:
 			print "Player already exists!"
+	
+	def get_state(self):
+		return self.__player.get_state()[1]
 
 	def handle_song_end(self, bus, message):
 		if message.type == gst.MESSAGE_EOS:
-			__LastFm__.scrobbleSong(self.now_playing_song)
+			__LastFm__.scrobble(self.now_playing_song)
 			self.stop()
 			print "Finished playing last song"
 			self.play_next_in_queue()
@@ -181,19 +184,19 @@ class MediaPlayer(object):
 				if not __VolumeMan__.is_mute:
 					__VolumeMan__.set_amp_power(True)
 				self.__player.set_state(gst.STATE_PLAYING)
-				if __LCDMan__.lcd_base == __LCDMan__.__base_playing:
+				if __LCDMan__.lcd_base == __LCDMan__.base_playing:
 					__LCDMan__.update()
 			elif player_state == gst.STATE_PLAYING:
 				print "Pausing playback"
 				self.__player.set_state(gst.STATE_PAUSED)
 				if not __VolumeMan__.is_mute:
 					__VolumeMan__.set_amp_power(False)	
-				if __LCDMan__.lcd_base == __LCDMan__.__base_playing:
+				if __LCDMan__.lcd_base == __LCDMan__.base_playing:
 					__LCDMan__.update()
 			elif player_state == gst.STATE_NULL:
 				print "Nothing in player"
 				self.play_next_in_queue()
-				if __LCDMan__.lcd_base == __LCDMan__.__base_playing:
+				if __LCDMan__.lcd_base == __LCDMan__.base_playing:
 					__LCDMan__.update()
 		except AttributeError:
 			print "Player does not yet exist!"
@@ -234,21 +237,21 @@ class MediaPlayer(object):
 		self.play_next_in_queue()
 
 class VolumeManager(object):
+	__amppwr_gpio = 24
+
 	def __init__(self, init_vol):
-		self.__AMPPWR_GPIO = 24
-		
 		self.curr_vol = 0
 		self.amp_on = False
 		self.is_mute = False
 
 		print "Setting up volume...",
 		self.__bus = smbus.SMBus(1)
-		gpio.setup(self.__AMPPWR_GPIO, gpio.OUT)
-		gpio.output(self.__AMPPWR_GPIO, gpio.HIGH)
+		gpio.setup(self.__amppwr_gpio, gpio.OUT)
+		gpio.output(self.__amppwr_gpio, gpio.HIGH)
 		print "done."
 
 	def __del__(self):
-		gpio.output(self.__AMPPWR_GPIO, gpio.HIGH)
+		gpio.output(self.__amppwr_gpio, gpio.HIGH)
 
 	def toggle_mute(self):
 		self.is_mute = not self.is_mute
@@ -260,15 +263,15 @@ class VolumeManager(object):
 			print "Un muted"
 		__LCDMan__.lcd_amp_power()
 
-	def set_amp_power(self, on):
-		if on:
-			gpio.output(self.__AMPPWR_GPIO, gpio.LOW)
+	def set_amp_power(self, on_r):
+		if on_r:
+			gpio.output(self.__amppwr_gpio, gpio.LOW)
 		else:
-			gpio.output(self.__AMPPWR_GPIO, gpio.HIGH)
-		self.amp_on = on
-		bVol = 64 - self.curr_vol
+			gpio.output(self.__amppwr_gpio, gpio.HIGH)
+		self.amp_on = on_r
+		b_vol = 64 - self.curr_vol
 		time.sleep(0.25)
-		self.__bus.write_byte_data(0x28, 0xAF, bVol)
+		self.__bus.write_byte_data(0x28, 0xAF, b_vol)
 	
 	def inc_vol(self):
 		print "Volume++",
@@ -292,7 +295,7 @@ class VolumeManager(object):
 
 class LCDMenuManager(object):
 	def __init__(self):
-		self.__lcd_cols = __LCDMan__.__lcd_cols
+		self.__lcd_cols = __LCDMan__.lcd_cols
 		
 		self.menu_struct = dict()
 		self.menu_level = 0
@@ -369,7 +372,7 @@ class LCDMenuManager(object):
 		for case in switch(self.cursor_pos):
 			if case(0):
 				b_index = self.menu_index
-				break;
+				break
 			if case(1):
 				b_index = self.menu_index - 1
 				break
@@ -405,10 +408,10 @@ class LCDMenuManager(object):
 			line3 = line3['title']
 		if type(line4) is dict:
 			line4 = line4['title']
-		line1 = __LCDMan__.asciiFilter(line1)
-		line2 = __LCDMan__.asciiFilter(line2)
-		line3 = __LCDMan__.asciiFilter(line3)
-		line4 = __LCDMan__.asciiFilter(line4)
+		line1 = __LCDMan__.ascii_filter(line1)
+		line2 = __LCDMan__.ascii_filter(line2)
+		line3 = __LCDMan__.ascii_filter(line3)
+		line4 = __LCDMan__.ascii_filter(line4)
 		for case in switch(self.cursor_pos):
 			if case(0):
 				line1 = ("{}{}".format(">", line1))[:self.__lcd_cols]
@@ -516,7 +519,7 @@ class LCDMenuManager(object):
 								print "Reload Library menu option selected"
 								__MediaPlayer__.stop()
 								__VolumeMan__.set_amp_power(False)
-								__LCDMan__.lcd_base = __LCDMan__.__base_info
+								__LCDMan__.lcd_base = __LCDMan__.base_info
 								__LCDMan__.info_lines = ["Updating local lib.", "from Google Play...", "", "Please Wait..."]
 								__LCDMan__.update()
 								__MusicClient__.update_local_lib()
@@ -529,10 +532,10 @@ class LCDMenuManager(object):
 								__MediaPlayer__.clear_queue()
 								__LCDMan__.lcd_clear_queue()
 								no_lcd_update = True
-								break;
+								break
 							if case("Toggle Scrobbling"):
 								print "Last.fm menu option selected"
-								__LastFm__.toggleScrobbling()
+								__LastFm__.toggle_scrobbling()
 								__LCDMan__.lcd_lastfm_toggle()
 								no_lcd_update = True
 								break
@@ -553,7 +556,7 @@ class LCDMenuManager(object):
 						if not (selected_item == "Queue Empty"):
 								print "On queue, a song was selected."
 								__MediaPlayer__.queue_index = (self.menu_index - 1)
-								__LCDMan__.lcd_base = __LCDMan__.__base_playing
+								__LCDMan__.lcd_base = __LCDMan__.base_playing
 								__MediaPlayer__.next()
 								no_lcd_update = True
 						else:
@@ -587,7 +590,7 @@ class LCDMenuManager(object):
 						__MediaPlayer__.queue_index = queue_len + self.menu_index - 1
 						for song in plist_songs:
 							__MediaPlayer__.add_to_queue(song)
-						__LCDMan__.lcd_base = __LCDMan__.__base_playing
+						__LCDMan__.lcd_base = __LCDMan__.base_playing
 						__MediaPlayer__.next()
 						no_lcd_update = True
 						break
@@ -613,7 +616,7 @@ class LCDMenuManager(object):
 				__MediaPlayer__.queue_index = queue_len + self.menu_index - 1
 				for song in album_songs:
 					__MediaPlayer__.add_to_queue(song)
-				__LCDMan__.lcd_base = __LCDMan__.__base_playing
+				__LCDMan__.lcd_base = __LCDMan__.base_playing
 				__MediaPlayer__.next()
 				no_lcd_update = True
 				break
@@ -623,27 +626,27 @@ class LCDMenuManager(object):
 	def menu_return(self):
 		if not (self.menu_level == 0):
 			self.menu_level = self.menu_level - 1
-			self.curr_pos = 0
+			self.cursor_pos = 0
 			self.menu_index = 0
 			self.menu_history.pop()
 			self.render_menu()
 
 class LCDManager(object):
-	def __init__(self):
-		self.__lcd_cols = 20
+	lcd_cols = 20
 
-		self.__base_info = 0
-		self.__base_playing = 1
-		self.__base_volume = 2
-		self.__base_menu = 3
-		self.__base_loved = 4
-		self.__base_amp = 5
+	base_info = 0
+	base_playing = 1
+	base_volume = 2
+	base_menu = 3
+	base_loved = 4
+	base_amp = 5
 		
-		self.__bl_gpio = 23
-		self.__lcd_timeout = 60
-		
+	__bl_gpio = 23
+	__lcd_timeout = 60
+
+	def __init__(self):
 		self.backlight_timeout = 0
-		self.lcd_base = self.__base_info
+		self.lcd_base = self.base_info
 		self.timeout = 0
 		self.timer_run = False
 
@@ -654,29 +657,29 @@ class LCDManager(object):
 		gpio.output(self.__bl_gpio, gpio.LOW)
 		self.backlight_on = True
 		self.backlight_timestart = time.time()
-		thread.start_new_thread(self.backlightManager, ())
+		thread.start_new_thread(self.backlight_manager, ())
 
 	def __del__(self):
 		gpio.output(self.__bl_gpio, gpio.HIGH)
 
-	def asciiFilter(self, string):
+	def ascii_filter(self, utf_str):
 		result = ''
-		for char in string:
+		for char in utf_str:
 			if ord(char) < 128:
 				result += char
 			else:
 				result += '?'
 		return result
 	
-	def backlightManager(self):
+	def backlight_manager(self):
 		while True:
 			end_time = self.backlight_timestart + self.__lcd_timeout
 			if time.time() > end_time:
-				self.setBacklight(False)
+				self.set_backlight(False)
 			else:
-				self.setBacklight(True)
+				self.set_backlight(True)
 	
-	def setBacklight(self, bl_on):
+	def set_backlight(self, bl_on):
 		if not (bl_on == self.backlight_on):
 			if bl_on:
 				gpio.output(self.__bl_gpio, gpio.LOW)
@@ -691,13 +694,13 @@ class LCDManager(object):
 			if __SerialPort__.isOpen():
 				__SerialPort__.write("24~") ##Arduino Change
 				time.sleep(0.02)
-				__SerialPort__.write("22%0%" + self.asciiFilter(line1)[:self.__lcd_cols] + "~") ##Arduino Change
+				__SerialPort__.write("22%0%" + self.ascii_filter(line1)[:self.lcd_cols] + "~") ##Arduino Change
 				time.sleep(0.02)
-				__SerialPort__.write("22%1%" + self.asciiFilter(line2)[:self.__lcd_cols] + "~") ##Arduino Change
+				__SerialPort__.write("22%1%" + self.ascii_filter(line2)[:self.lcd_cols] + "~") ##Arduino Change
 				time.sleep(0.02)
-				__SerialPort__.write("22%2%" + self.asciiFilter(line3)[:self.__lcd_cols] + "~") ##Arduino Change
+				__SerialPort__.write("22%2%" + self.ascii_filter(line3)[:self.lcd_cols] + "~") ##Arduino Change
 				time.sleep(0.02)
-				__SerialPort__.write("22%3%" + self.asciiFilter(line4)[:self.__lcd_cols] + "~") ##Arduino Change
+				__SerialPort__.write("22%3%" + self.ascii_filter(line4)[:self.lcd_cols] + "~") ##Arduino Change
 			else:
 				print "Serial port is not open!"
 		else:
@@ -705,13 +708,13 @@ class LCDManager(object):
 	
 	def update(self):
 		for case in switch(self.lcd_base):
-			if case(self.__base_info):
+			if case(self.base_info):
 				self.write_lcd(self.info_lines[0], self.info_lines[1], self.info_lines[2], self.info_lines[3])
 				break
-			if case(self.__base_playing):
+			if case(self.base_playing):
 				song = __MediaPlayer__.now_playing_song
 				info_line_list = list()
-				player_state = __MediaPlayer__.__player.get_state()[1]
+				player_state = __MediaPlayer__.get_state()
 				if player_state == gst.STATE_PLAYING:
 					info_line_list.append("Playing   ")
 				if player_state == gst.STATE_PAUSED:
@@ -725,17 +728,17 @@ class LCDManager(object):
 				else:
 					self.write_lcd("No song playing.", "", "", "")
 				break
-			if case(self.__base_volume):
+			if case(self.base_volume):
 				__SerialPort__.write("23%" + format(__VolumeMan__.curr_vol) + "~") ##Arduino Change
 				break
-			if case(self.__base_menu):
+			if case(self.base_menu):
 				self.write_lcd(self.menu_lines[0], self.menu_lines[1], self.menu_lines[2], self.menu_lines[3])
 				break
-			if case(self.__base_loved):
+			if case(self.base_loved):
 				song = __MediaPlayer__.now_playing_song
 				self.write_lcd(song["title"], song["artist"], "Loved on Last.fm", "Thumbs up on Play")
 				break
-			if case(self.__base_amp):
+			if case(self.base_amp):
 				if __VolumeMan__.amp_on:
 					en_string = "Enabled"
 				else:
@@ -759,14 +762,14 @@ class LCDManager(object):
 	
 	def lcd_amp_power(self):
 		base_last = self.lcd_base
-		self.lcd_base = self.__base_amp
+		self.lcd_base = self.base_amp
 		self.update()
 		self.lcd_base = base_last
 		self.init_timer(2)
 	
 	def lcd_loved(self):
 		base_last = self.lcd_base
-		self.lcd_base = self.__base_loved
+		self.lcd_base = self.base_loved
 		self.update()
 		self.lcd_base = base_last
 		self.init_timer(2)
@@ -775,52 +778,52 @@ class LCDManager(object):
 		base_last = self.lcd_base
 		if not self.timer_run:
 			self.update()
-		self.lcd_base = self.__base_volume
+		self.lcd_base = self.base_volume
 		self.update()
 		self.lcd_base = base_last
 		self.init_timer(3)
 	
 	def lcd_lastfm_toggle(self):
-		self.lcd_base = __LCDMan__.__base_info
-		string = ""
+		self.lcd_base = __LCDMan__.base_info
+		en_str = ""
 		if __LastFm__.scrobbles_enabled:
-			string = "Enabled"
+			en_str = "Enabled"
 		else:
-			string = "Disabled"
-		self.info_lines = ["Last.fm Scrobbling:", string, "", ""]
+			en_str = "Disabled"
+		self.info_lines = ["Last.fm Scrobbling:", en_str, "", ""]
 		self.update()
-		self.lcd_base = __LCDMan__.__base_menu
+		self.lcd_base = __LCDMan__.base_menu
 		self.init_timer(2)
 
 	def lcd_clear_queue(self):
-		self.lcd_base = __LCDMan__.__base_info
+		self.lcd_base = __LCDMan__.base_info
 		self.info_lines = ["Queue Cleared", "", "", ""]
 		self.update()
-		self.lcd_base = __LCDMan__.__base_menu
+		self.lcd_base = __LCDMan__.base_menu
 		self.init_timer(2)
 	
 	def lcd_repeat_toggle(self):
-		self.lcd_base = __LCDMan__.__base_info
-		string = ""
+		self.lcd_base = __LCDMan__.base_info
+		repeat_str = ""
 		if __MediaPlayer__.repeat:
-			string = "Enabled"
+			repeat_str = "Enabled"
 		else:
-			string = "Disabled"
-		self.info_lines = ["Repeat:", string, "", ""]
+			repeat_str = "Disabled"
+		self.info_lines = ["Repeat:", repeat_str, "", ""]
 		self.update()
-		self.lcd_base = __LCDMan__.__base_menu
+		self.lcd_base = __LCDMan__.base_menu
 		self.init_timer(2)
 
 	def lcd_play_mode_toggle(self):
-		self.lcd_base = __LCDMan__.__base_info
-		string = ""
+		self.lcd_base = __LCDMan__.base_info
+		pmode_str = ""
 		if __MediaPlayer__.random:
-			string = "Random"
+			pmode_str = "Random"
 		else:
-			string = "Linear"
-		self.info_lines = ["Play Mode:", string, "", ""]
+			pmode_str = "Linear"
+		self.info_lines = ["Play Mode:", pmode_str, "", ""]
 		self.update()
-		self.lcd_base = __LCDMan__.__base_menu
+		self.lcd_base = __LCDMan__.base_menu
 		self.init_timer(2)
 
 class LastfmScrobbler(object):
@@ -836,7 +839,12 @@ class LastfmScrobbler(object):
 			self.__session = pylast.LastFMNetwork(
 					api_key = self.__api_key, api_secret = self.__api_secret,
 					username = username, password_hash = password_hash)
+
 		self.enabled = use
+		self.scrobbles_enabled = use
+
+	def toggle_scrobbling(self):
+		self.scrobbles_enabled = not self.scrobbles_enabled
 
 	def love_song(self, song):
 		if not song == None and self.enabled:
@@ -880,13 +888,13 @@ def serial_handler():
 	time.sleep(0.01)
 	data = __SerialPort__.read(2)
 	__LCDMan__.backlight_timestart = time.time()
-	player_state = __MediaPlayer__.__player.get_state()[1]
+	player_state = __MediaPlayer__.get_state()
 	for case in switch(data): ##Arduino Change
 		if case("11"):
 			print "Stop button pressed."
 			__MediaPlayer__.stop()
 			__VolumeMan__.set_amp_power(False)
-			__LCDMan__.lcd_base = __LCDMan__.__base_menu
+			__LCDMan__.lcd_base = __LCDMan__.base_menu
 			__LCDMan__.update()
 			break
 		if case("12"):
@@ -901,25 +909,25 @@ def serial_handler():
 			print "Love pressed."
 			if player_state == gst.STATE_PLAYING or player_state == gst.STATE_PAUSED:
 				__LCDMan__.lcd_loved()
-				__LastFm__.loveSong(__MediaPlayer__.now_playing_song)
+				__LastFm__.love_song(__MediaPlayer__.now_playing_song)
 				__MusicClient__.rate_song(__MediaPlayer__.now_playing_song, 5)
 			break
 		if case("19"):
 			print "Display pressed."
 			for case in switch(__LCDMan__.lcd_base):
-				if case(__LCDMan__.__base_menu):
+				if case(__LCDMan__.base_menu):
 					if player_state == gst.STATE_PLAYING or player_state == gst.STATE_PAUSED:
-						__LCDMan__.lcd_base = __LCDMan__.__base_playing
+						__LCDMan__.lcd_base = __LCDMan__.base_playing
 						__LCDMan__.update()
 					break
-				if case(__LCDMan__.__base_playing):
-					__LCDMan__.lcd_base = __LCDMan__.__base_menu
+				if case(__LCDMan__.base_playing):
+					__LCDMan__.lcd_base = __LCDMan__.base_menu
 					__LCDMan__.update()
 					break
 			break
 		if case("13"):
 			print "Back pressed."
-			if __LCDMan__.lcd_base == __LCDMan__.__base_menu:
+			if __LCDMan__.lcd_base == __LCDMan__.base_menu:
 				__LCDMenuMan__.menu_return()
 			break
 		if case("15"):
@@ -934,22 +942,22 @@ def serial_handler():
 			break
 		if case("18"):
 			print "Select pressed."
-			if __LCDMan__.lcd_base == __LCDMan__.__base_menu:
+			if __LCDMan__.lcd_base == __LCDMan__.base_menu:
 				__LCDMenuMan__.menu_select()
 			break
 		if case("16"):
 			print "Up pressed."
-			if __LCDMan__.lcd_base == __LCDMan__.__base_menu:
+			if __LCDMan__.lcd_base == __LCDMan__.base_menu:
 				__LCDMenuMan__.menu_up()
 			break
 		if case("17"):
 			print "Down pressed."
-			if __LCDMan__.lcd_base == __LCDMan__.__base_menu:
+			if __LCDMan__.lcd_base == __LCDMan__.base_menu:
 				__LCDMenuMan__.menu_down()
 			break
 		if case("21"):
 			print "Mute pressed."
-			__VolumeMan__.toggle_mute();
+			__VolumeMan__.toggle_mute()
 			break
 	__SerialPort__.flushInput()
 
@@ -971,12 +979,12 @@ def main():
 	global __MediaPlayer__
 	global __LCDMan__
 	global __LCDMenuMan__
-	global __lastFm__
+	global __LastFm__
 	global __VolumeMan__
 	gpio.setmode(gpio.BCM)
 	open_serial("/dev/ttyAMA0", 115200)
 	__LCDMan__ = LCDManager()
-	__LCDMan__.lcd_base = __LCDMan__.__base_info
+	__LCDMan__.lcd_base = __LCDMan__.base_info
 	__LCDMan__.info_lines = ["", "", "", ""]
 	__LCDMan__.update()
 	__LCDMan__.info_lines = ["Logging in to", "Google Play...", "", "Please wait..."]
@@ -1001,7 +1009,7 @@ def main():
 	__SerialPort__.flushInput()
 	
 	__LCDMenuMan__ = LCDMenuManager()
-	__LCDMan__.lcd_base = __LCDMan__.__base_menu
+	__LCDMan__.lcd_base = __LCDMan__.base_menu
 	__LCDMenuMan__.menu_up()
 	__LCDMan__.update()
 	__SerialPort__.flushInput()
