@@ -20,7 +20,7 @@ import gst
 #__LCDMan__ = None
 #__LastFm__ = None
 #__LCDMenuMan__ = None
-#__SerialPort__ = None
+__SerialPort__ = None
 
 class switch(object):
 	def __init__(self, value):
@@ -59,10 +59,12 @@ class GPMClient(object):
 		self.__api.logout()
 
 	def update_local_lib(self):
+		print "Getting all library tracks"
 		songs = self.__api.get_all_songs()
 		self.playlists["Thumbs Up"] = list()
 
 		#	Get main library
+		print "Processing library tracks"
 		song_map = dict()	
 		for song in songs:
 			if "rating" in song and song["rating"] == "5":
@@ -89,12 +91,14 @@ class GPMClient(object):
 			self.library[song_artist][song_album].append(song)
 
 		# Sort albums by track number
+		print "Sorting library tracks"
 		for artist in self.library.keys():
 			for album in self.library[artist].keys():
 				newlist = sorted(self.library[artist][album], key=lambda k: k['trackNumber'])
 				self.library[artist][album] = newlist
 
 		#	Get all playlists
+		print "Getting user playlists"
 		plists = self.__api.get_all_user_playlist_contents()
 		for plist in plists:
 			plist_name = plist["name"]
@@ -354,7 +358,7 @@ class LCDMenuManager(object):
 		if type(self.current_menu_display) is dict:
 			self.current_menu_display = self.current_menu_display.keys()
 		try:
-			if self.menu_history[0] == "Playlists":
+			if (self.menu_history[0] == "Playlists") and (self.menu_level == 1):
 				print "Showing playlists, will sort for LCD"
 				self.current_menu_display.sort()
 			if (self.menu_history[0] == "Library") and (self.menu_level == 1):
@@ -828,8 +832,8 @@ class LCDManager(object):
 
 class LastfmScrobbler(object):
 	def __init__(self, username, password, use):
-		self.__api_key = "a0790cb91b8799b0eda1f60d3924b676"
-		self.__api_secret = "5007f138c5fef4278f36c70d760f24b7"
+		self.__api_key = "3b918147d7533ddb46cbf8c90c7c4b63"
+		self.__api_secret = "feb61d4de652b7223ab2341a4e436668"
 
 		self.__session = None
 
@@ -999,7 +1003,7 @@ def main():
 	__LCDMan__.info_lines = ["Logging in to", "Google Play...", "", "Please wait..."]
 	__LCDMan__.update()
 	__SerialPort__.flushInput()
-	__MusicClient__ = GPMClient("GOOGLE_USER", "GOOGLE_PASS", "DEVICE_ID")
+	__MusicClient__ = GPMClient("GOOGLE_EMAIL", "GOOGLE_PASSWORD", "DEVICE_ID")
 	__LCDMan__.info_lines = ["Login Success.", "", "", ""]
 	__LCDMan__.update()
 	__SerialPort__.flushInput()
@@ -1012,7 +1016,7 @@ def main():
 	__LCDMan__.info_lines = ["Logging in to", "Last.fm...", "", "Please wait..."]
 	__LCDMan__.update()
 	__SerialPort__.flushInput()
-	__LastFm__ = LastfmScrobbler("LASTFM_USER", "LASTFM_PASS", True)
+	__LastFm__ = LastfmScrobbler("LASTFM_USERNAME", "LASTFM_PASSWORD", False)
 	__LCDMan__.info_lines = ["Google Play Music", "Ready!", "", ""]
 	__LCDMan__.update()
 	__SerialPort__.flushInput()
