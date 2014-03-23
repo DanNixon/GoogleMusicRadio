@@ -685,6 +685,7 @@ class LCDManager(object):
 	
 	def backlight_manager(self):
 		while True:
+			time.sleep(2.0)
 			end_time = self.backlight_timestart + self.__lcd_timeout
 			if time.time() > end_time:
 				self.set_backlight(False)
@@ -760,6 +761,7 @@ class LCDManager(object):
 
 	def timer_thread(self):
 		while self.timer_run:
+			time.sleep(0.5)
 			if time.time() > self.timeout:
 				self.update()
 				self.timer_run = False
@@ -906,7 +908,6 @@ class LastfmScrobbler(object):
 			pass
 	
 def serial_handler():
-	time.sleep(0.01)
 	data = __SerialPort__.read(2)
 	__LCDMan__.backlight_timestart = time.time()
 	player_state = __MediaPlayer__.get_state()
@@ -986,7 +987,7 @@ def open_serial(portname, rate):
 	global __SerialPort__
 	if __SerialPort__ == None:
 		print "Serial port does not exist, creating...",
-		__SerialPort__ = serial.Serial(port=portname, baudrate=rate)
+		__SerialPort__ = serial.Serial(port=portname, baudrate=rate, timeout=5.0)
 		print "done."
 	else:
 		print "Serial port alread exists!"
@@ -1036,7 +1037,8 @@ def main():
 	__SerialPort__.flushInput()
 	
 	while True:
-		serial_handler()	
+		serial_handler()
+		print "===serial iter"
 	thread.exit()
 
 gobject.threads_init()
