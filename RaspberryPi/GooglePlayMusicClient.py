@@ -1038,7 +1038,6 @@ def main():
 	
 	while True:
 		serial_handler()
-		print "===serial iter"
 	thread.exit()
 
 gobject.threads_init()
